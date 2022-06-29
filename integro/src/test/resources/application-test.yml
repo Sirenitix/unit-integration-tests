@@ -1,5 +1,8 @@
 spring:
   datasource:
-    url: jdbc:tc:postgresql:13.2-alpine://payment
+    url: jdbc:postgresql://localhost:5432/postgres
+    driverClassName: org.postgresql.Driver
+    username: postgres
+    password: 12345
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect

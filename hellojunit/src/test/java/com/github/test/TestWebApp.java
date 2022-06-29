@@ -1,16 +1,15 @@
 package com.github.test;
 
+import static org.junit.Assert.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.github.model.Employee;
 import org.junit.Before;
 import org.junit.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 /*
 	TODO
@@ -25,8 +24,29 @@ import org.springframework.web.context.WebApplicationContext;
 		Должно проверять значение поля "salary"
 		Должно проверять значение поля "empId"
 */
-public class TestWebApp extends SpringBootHelloWorldTests {
+public class TestWebApp extends AbstractTest {
 
 	// your solution
+    @Override
+    @Before
+    public void setUp() {
+        super.setUp();
+    }
+    @Test
+    public void getProductsList() throws Exception {
+        String uri = "/employee";
+        MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.get(uri)
+                .accept(MediaType.APPLICATION_JSON_VALUE)).andReturn();
+
+        int status = mvcResult.getResponse().getStatus();
+        assertEquals(200, status);
+        String content = mvcResult.getResponse().getContentAsString();
+        Employee employee = super.mapFromJson(content);
+        assertNotNull(employee);
+        assertNotNull(employee.getEmpId());
+        assertNotNull(employee.getDesignation());
+        assertNotNull(employee.getName());
+        assertTrue(employee.getSalary() >= 0);
+    }
 
 }
