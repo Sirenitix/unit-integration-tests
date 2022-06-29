@@ -6,11 +6,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import okhttp3.mockwebserver.MockWebServer;
+import org.checkerframework.checker.units.qual.A;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -21,6 +25,8 @@ import javax.money.CurrencyUnit;
 import javax.money.Monetary;
 import javax.money.MonetaryAmount;
 import java.io.IOException;
+
+import static org.mockito.Mockito.times;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -59,28 +65,24 @@ class ServerIntegrationTests {
     }
 
     @Test
-    void createOrder() throws JsonProcessingException {
-        // TODO: протестируйте успешное создание заказа на 100 евро
+    void createOrder() {
         CurrencyUnit euro = Monetary
                 .getCurrency("EUR");
-        ObjectMapper objectMapper = JsonMapper
-                .builder()
-                .findAndAddModules()
-                .build();
-        objectMapper.findAndRegisterModules();
         MonetaryAmount monetaryAmount = Monetary
                 .getDefaultAmountFactory()
                 .setCurrency(euro)
                 .setNumber(100)
                 .create();
         OrderRequest orderRequest = new OrderRequest();
-        Order expectedOrder = orderService.createOrder(monetaryAmount);
         orderRequest.setAmount(monetaryAmount);
+        Order expectedOrder = orderService.createOrder(monetaryAmount);
         webClient.post().uri("/order")
                 .body(Mono.just(orderRequest), Order.class)
                 .exchange()
                 .expectStatus().isCreated()
-                .expectBody().json(objectMapper.writeValueAsString(expectedOrder));
+                .expectBody(Order.class)
+                .value(order -> order.getAmount())
+
     }
 
     @Test
