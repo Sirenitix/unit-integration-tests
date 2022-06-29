@@ -6,15 +6,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import okhttp3.mockwebserver.MockWebServer;
+import org.aspectj.weaver.ast.Or;
 import org.checkerframework.checker.units.qual.A;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -25,7 +29,12 @@ import javax.money.CurrencyUnit;
 import javax.money.Monetary;
 import javax.money.MonetaryAmount;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.Objects;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
+
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -75,13 +84,17 @@ class ServerIntegrationTests {
                 .create();
         OrderRequest orderRequest = new OrderRequest();
         orderRequest.setAmount(monetaryAmount);
-        Order expectedOrder = orderService.createOrder(monetaryAmount);
         webClient.post().uri("/order")
+                .accept(MediaType.APPLICATION_JSON)
                 .body(Mono.just(orderRequest), Order.class)
                 .exchange()
                 .expectStatus().isCreated()
                 .expectBody(Order.class)
-                .value(order -> order.getAmount())
+                .consumeWith(result -> {
+                    Order order = result.getResponseBody();
+                    assert order != null;
+                    assertThat(order.getAmount().intValue()).isEqualTo(new BigDecimal(100).intValue());
+                });;
 
     }
 
