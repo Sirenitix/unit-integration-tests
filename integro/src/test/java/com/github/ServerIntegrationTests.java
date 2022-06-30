@@ -1,23 +1,13 @@
 package com.github;
 
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.mockwebserver.MockWebServer;
-import org.aspectj.weaver.ast.Or;
-import org.checkerframework.checker.units.qual.A;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -28,15 +18,15 @@ import reactor.core.publisher.Mono;
 import javax.money.CurrencyUnit;
 import javax.money.Monetary;
 import javax.money.MonetaryAmount;
+import javax.persistence.EntityNotFoundException;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
+
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-
+@Slf4j
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 class ServerIntegrationTests {
@@ -47,13 +37,12 @@ class ServerIntegrationTests {
     private OrderRepository orderRepository;
 
     @Autowired
-    private OrderService orderService;
-
-    @Autowired
     private PaymentRepository paymentRepository;
 
     private static MockWebServer mockWebServer;
 
+    @Autowired
+    private  ExchangeClientProperties properties;
 
 
     @DynamicPropertySource
@@ -73,10 +62,9 @@ class ServerIntegrationTests {
         orderRepository.deleteAll();
     }
 
-    @Test
-    void createOrder() {
+    void requestToCreateOrder(String currencyCode){
         CurrencyUnit euro = Monetary
-                .getCurrency("EUR");
+                .getCurrency(currencyCode);
         MonetaryAmount monetaryAmount = Monetary
                 .getDefaultAmountFactory()
                 .setCurrency(euro)
@@ -86,7 +74,7 @@ class ServerIntegrationTests {
         orderRequest.setAmount(monetaryAmount);
         webClient.post().uri("/order")
                 .accept(MediaType.APPLICATION_JSON)
-                .body(Mono.just(orderRequest), Order.class)
+                .body(Mono.just(orderRequest), OrderRequest.class)
                 .exchange()
                 .expectStatus().isCreated()
                 .expectBody(Order.class)
@@ -94,22 +82,77 @@ class ServerIntegrationTests {
                     Order order = result.getResponseBody();
                     assert order != null;
                     assertThat(order.getAmount().intValue()).isEqualTo(new BigDecimal(100).intValue());
-                });;
+                });
+    }
 
+    @Test
+    void createOrder() {
+        String currencyCode  =  "EUR";
+        requestToCreateOrder(currencyCode);
     }
 
     @Test
     void payOrder() {
         // TODO: протестируйте успешную оплату ранее созданного заказа валидной картой
-        // используя webClient
-        // Получите `id` заказа из базы данных, используя orderRepository
+        createOrder();
+        Long orderId = orderRepository.findAll()
+                                      .get(0)
+                                      .getId();
+        log.info(orderId + " - orderId");
+        String creditCardNumber= "4109842488675601";
+       requestToPayOrder(orderId, creditCardNumber);
+
+
+    }
+
+    void requestToPayOrder(Long orderId ,String creditCardNumber){
+        PaymentRequest paymentRequest = new PaymentRequest(creditCardNumber);
+        webClient.post().uri("/order/" + orderId + "/payment")
+                .accept(MediaType.APPLICATION_JSON)
+                .body(Mono.just(paymentRequest), PaymentRequest.class)
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody(PaymentResponse.class)
+                .consumeWith(result -> {
+                    PaymentResponse paymentResponse = result.getResponseBody();
+                    assert paymentResponse != null;
+                    assertThat(paymentResponse.getOrderId()).isEqualTo(orderId);
+                    assertThat(paymentResponse.getCreditCardNumber()).isEqualTo(creditCardNumber);
+                    log.info(paymentResponse.getCreditCardNumber());
+                });
+
     }
 
     @Test
     void getReceipt() {
         // TODO: Протестируйте получение чека на заказ №1 c currency = USD
-        // Создайте объект Order, Payment и выполните save, используя orderRepository
-        // Используйте mockWebServer для получения conversion_rate
-        // Сделайте запрос через webClient
+
+        String currencyCode = "USD";
+        requestToCreateOrder(currencyCode);
+
+        String creditCardNumber= "3702466327559538";
+        Long orderId = orderRepository.findAll()
+                .get(0)
+                .getId();
+        log.info(String.valueOf(orderId));
+        requestToPayOrder(orderId, creditCardNumber);
+
+        CurrencyUnit currencyUnit = Monetary
+                .getCurrency(currencyCode);
+
+        String apiKey = properties.getApiKey();
+        String baseUrl ="https://v6.exchangerate-api.com/";
+        ExchangeResponse exchangeResponse = new ExchangeResponse();
+        webClient.get().uri(baseUrl + "/v6/{apiKey}/pair/{from}/{to}", apiKey, Monetary.getCurrency("EUR"), currencyUnit)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectBody(ExchangeResponse.class)
+                .consumeWith(response -> {
+                    exchangeResponse.setResult(Objects.requireNonNull(response.getResponseBody()).getResult());
+                    exchangeResponse.setConversionRate(response.getResponseBody().getConversionRate());
+                });
+        assertThat(exchangeResponse.getResult()).isNotNull();
+        assertThat(exchangeResponse.getConversionRate()).isNotNull();
+
     }
 }
