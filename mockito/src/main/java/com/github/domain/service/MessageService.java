@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 public class MessageService {
 
     public Message deliverMessage(Message message) {
-
+        System.out.println(message.getText());
         return message;
     }
 }

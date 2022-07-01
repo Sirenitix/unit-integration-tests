@@ -28,7 +28,6 @@ public class MessageController {
         message.setTo(messageDTO.getTo());
         message.setDate(Date.from(Instant.now()));
         message.setId(UUID.randomUUID());
-
         return messageService.deliverMessage(message);
     }
 }
