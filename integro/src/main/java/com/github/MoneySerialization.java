@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.jackson.JsonComponent;
 import org.springframework.context.i18n.LocaleContextHolder;
 
@@ -15,6 +16,7 @@ import javax.money.format.MonetaryAmountFormat;
 import javax.money.format.MonetaryFormats;
 import java.io.IOException;
 
+@Slf4j
 @JsonComponent
 public class MoneySerialization {
 
@@ -53,6 +55,7 @@ public class MoneySerialization {
 
             JsonNode node = parser.getCodec().readTree(parser);
             String text = node.asText();
+            log.info(text + " -----------------------------------------");
             return monetaryAmountFormat.parse(text);
         }
     }

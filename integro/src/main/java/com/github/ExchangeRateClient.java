@@ -18,17 +18,17 @@ public class ExchangeRateClient {
     public BigDecimal getExchangeRate(CurrencyUnit from, CurrencyUnit to) {
         String baseUrl = properties.getBaseUrl();
         String apiKey = properties.getApiKey();
-        log.info(baseUrl);
-        log.info(apiKey);
-        log.info(from.getCurrencyCode());
-        log.info(to.getCurrencyCode());
+        log.info(baseUrl + " - baseUrl");
+        log.info(apiKey + " - apiKey");
+        log.info(from.getCurrencyCode() + " - from");
+        log.info(to.getCurrencyCode()  + " - to");
         return webClient.get()
                 .uri(baseUrl + "/v6/{apiKey}/pair/{from}/{to}", apiKey, from, to)
                 .retrieve()
                 .bodyToMono(ExchangeResponse.class)
                 .blockOptional()
                 .map(response -> {
-
+                    log.info(response + " - exchange rate response");
                     if ("error".equals(response.getResult())) {
                         throw new ExchangeFailure();
                     } else {

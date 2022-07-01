@@ -1,6 +1,10 @@
 package com.github;
 
+import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import lombok.extern.slf4j.Slf4j;
+import org.javamoney.moneta.Money;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -19,12 +23,11 @@ import javax.money.Monetary;
 import javax.money.MonetaryAmount;
 import java.math.BigDecimal;
 
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
+@Slf4j
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -33,7 +36,7 @@ class MockEnvIntegrationTests {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @Autowired
     private ExchangeRateClient exchangeRateClient;
 
     @Test
@@ -49,36 +52,57 @@ class MockEnvIntegrationTests {
                 .create();
         OrderRequest orderRequest = new OrderRequest();
         orderRequest.setAmount(monetaryAmount);
+        ObjectMapper mapper = new ObjectMapper();
+        SimpleModule module = new SimpleModule("CustomOrderRequestSerializer", new Version(1, 0, 0, null, null, null));
+        module.addSerializer(OrderRequest.class, new CustomOrderRequestSerializer());
+        mapper.registerModule(module);
+        String orderRequestJson = mapper.writeValueAsString(orderRequest);
         mockMvc.perform( MockMvcRequestBuilders
                         .post("/order")
-
-                        .content(asJsonString(orderRequest))
+                        .content(orderRequestJson)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.amount").exists());
+                .andExpect(status().isCreated())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.amount").value(100));
     }
 
-    public static String asJsonString(final Object obj) {
-        try {
-            return new ObjectMapper().writeValueAsString(obj);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
+
+
 
     @Test
     @Sql("/unpaid-order.sql")
     void payOrder() throws Exception {
-        // TODO: протестируйте успешную оплату ранее созданного заказа валидной картой
-
+        // TODO: протестируйте успешную оплату ранее созданного заказа валидной картой\
+        ObjectMapper objectMapper = new ObjectMapper();
+        PaymentRequest paymentRequest = new PaymentRequest();
+        paymentRequest.setCreditCardNumber("4530116592655166");
+        String orderRequestAsString = objectMapper.writeValueAsString(paymentRequest);
+        mockMvc.perform( MockMvcRequestBuilders
+                        .post("/order/1/payment")
+                        .content(orderRequestAsString)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isCreated())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.creditCardNumber").value("4530116592655166"));
     }
 
     @Test
     @Sql("/paid-order.sql")
-    void getReceipt() throws Exception {
+    void getReceipt() {
         // TODO: Протестируйте получение чека на заказ №1 c currency = USD
         // Примечание: используйте мок для ExchangeRateClient
+        String currencyCodeEur = "EUR";
+        CurrencyUnit euro = Monetary
+                .getCurrency(currencyCodeEur);
+        String currencyCodeUsd = "USD";
+        CurrencyUnit usd = Monetary
+                .getCurrency(currencyCodeUsd);
+        BigDecimal rate = exchangeRateClient.getExchangeRate(euro, usd);
+        log.info(rate + " - rate");
+        MonetaryAmount convertedAmount = Money.of(new BigDecimal(100).multiply(rate), usd);
+        log.info(convertedAmount + " - convertedAmount");
+        assertThat(convertedAmount).isNotNull();
     }
 }
