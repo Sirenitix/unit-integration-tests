@@ -27,6 +27,17 @@ public class Message {
         this.to = to;
     }
 
+    @Override
+    public String toString() {
+        return "Message{" +
+                "from='" + from + '\'' +
+                ", to='" + to + '\'' +
+                ", text='" + text + '\'' +
+                ", date=" + date +
+                ", id=" + id +
+                '}';
+    }
+
     public String getText() {
         return text;
     }

@@ -6,14 +6,16 @@ import com.github.domain.service.MessageService;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
 
-import static org.mockito.ArgumentMatchers.eq;
+import java.time.Instant;
+import java.util.Date;
+import java.util.UUID;
+
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.Mockito.when;
 
 /*
@@ -26,31 +28,33 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class MessageControllerUnitTest {
 
-    @InjectMocks
+    @Mock
     MessageController messageController;
 
     @Mock
     MessageService messageService;
 
-    @Before
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
-    }
-
     @Test
     public void testSaveUser() {
         Message message = new Message();
-        message.setFrom("Sun");
+        message.setFrom("Darkness");
         message.setText("Hi");
-        message.setTo("Moon");
-        MessageApi messageApi = new MessageApi();
-        messageApi.setFrom("Jupiter");
-        messageApi.setText("Hi");
-        messageApi.setTo("Mars");
-        when(messageService.deliverMessage(eq(message))).thenReturn(message);
-        Message message_1 = messageController.createMessage(messageApi);
-        System.out.println(messageService.deliverMessage(message).toString());
-        System.out.println(message_1 + " - message_1");
+        message.setTo("Light");
+        message.setDate(Date.from(Instant.now()));
+        message.setId(UUID.randomUUID());
+
+        MessageApi messageDTO = new MessageApi();
+        messageDTO.setFrom("Darkness");
+        messageDTO.setText("Hi");
+        messageDTO.setTo("Light");
+
+        when(messageService.deliverMessage(Mockito.eq(message))).thenReturn(message);
+        when(messageController.createMessage(Mockito.eq(messageDTO))).thenReturn(message);
+        Message result = messageController.createMessage(messageDTO);
+
+
+        assertThat(result).isEqualTo(message);
+
     }
 
 

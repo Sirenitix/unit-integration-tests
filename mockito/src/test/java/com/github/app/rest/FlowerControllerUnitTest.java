@@ -39,8 +39,8 @@ public class FlowerControllerUnitTest {
     }
     @Test
     public void isABigFlower_withMockito_OK() {
-        when(flowerService.isABigFlower(eq("nurs"), anyInt())).thenReturn(true);
-        Flower flower = new Flower("nurs", 25);
+        when(flowerService.isABigFlower(eq("rose"), anyInt())).thenReturn(true);
+        Flower flower = new Flower("rose", 25);
         Boolean response = flowerController.isABigFlower(flower);
         Assert.assertTrue(response);
     }
