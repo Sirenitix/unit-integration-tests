@@ -54,7 +54,7 @@ class MockEnvIntegrationTests {
         orderRequest.setAmount(monetaryAmount);
         ObjectMapper mapper = new ObjectMapper();
         SimpleModule module = new SimpleModule("CustomOrderRequestSerializer", new Version(1, 0, 0, null, null, null));
-        module.addSerializer(OrderRequest.class, new CustomOrderRequestSerializer());
+        module.addSerializer(MonetaryAmount.class, new MoneySerialization.MonetaryAmountSerializer());
         mapper.registerModule(module);
         String orderRequestJson = mapper.writeValueAsString(orderRequest);
         mockMvc.perform( MockMvcRequestBuilders
